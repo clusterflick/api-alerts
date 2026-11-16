@@ -176,6 +176,7 @@ export function serve(options: {
           const { writes: sent } = (await request.json()) as {
             writes: {
               update?: { name: string; fields: Fields };
+              updateMask?: { fieldPaths: string[] };
               delete?: string;
               currentDocument?: { exists?: boolean; updateTime?: string };
             }[];
@@ -200,7 +201,19 @@ export function serve(options: {
           for (const write of sent) {
             if (write.update) {
               const path = write.update.name.slice(ROOT.length + 1);
-              store[path] = decodeFields(write.update.fields);
+              const data = decodeFields(write.update.fields);
+              if (write.updateMask) {
+                // Only the fields named: the rest are kept, and a field
+                // named but not sent is removed, as Firestore does.
+                const next = { ...(store[path] ?? {}) };
+                for (const field of write.updateMask.fieldPaths) {
+                  if (field in data) next[field] = data[field];
+                  else delete next[field];
+                }
+                store[path] = next;
+              } else {
+                store[path] = data;
+              }
               stamp(path);
               writes.push(path);
             } else if (write.delete) {

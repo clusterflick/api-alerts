@@ -25,6 +25,8 @@
     // domain's own mail (Fastmail), not alerts.clusterflick.com, which
     // receives nothing.
     "REPLY_TO": "hello@clusterflick.com",
+    // This Worker, as the emails' unsubscribe links reach it.
+    "ALERTS_ORIGIN": "https://alerts.clusterflick.com",
   },
   // Cloudflare Email Service, sending from alerts.clusterflick.com (onboarded
   // in the dashboard), and only ever from the one address.
@@ -37,7 +39,9 @@
   // This Worker's own service account, with Cloud Datastore User: it reads a
   // reader's settings, capabilities and watchlist, and writes their ledger.
   // Set with `wrangler secret put`, locally in `.dev.vars`.
-  "secrets": { "required": ["FIREBASE_SERVICE_ACCOUNT"] },
+  // And UNSUBSCRIBE_SECRET, which signs each email's unsubscribe link: any
+  // long random string, never shown anywhere.
+  "secrets": { "required": ["FIREBASE_SERVICE_ACCOUNT", "UNSUBSCRIBE_SECRET"] },
   // Per-location and approximate, as in the other Workers. api-tmdb-search
   // has 1xxx, api-profiles 2xxx, api-mcp 3xxx. One limit for what the site's
   // pages ask (a preview, remembering the watchlist): each reads the listings

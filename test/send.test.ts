@@ -81,6 +81,22 @@ describe("sending", () => {
     expect(ledger(store).sending).toBeUndefined();
   });
 
+  it("carries one-click unsubscribe, signed for the reader and the night", async () => {
+    await newsTomorrow();
+    const email = fakeEmail();
+    await runNight(NEXT_NIGHT, { ...SENDING, EMAIL: email.binding });
+    const headers = email.sent[0].headers ?? {};
+    expect(headers["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
+    const link = headers["List-Unsubscribe"].slice(1, -1);
+    expect(link).toMatch(
+      new RegExp(
+        `^https://alerts\\.clusterflick\\.com/unsubscribe\\?t=u1\\.${dayFrom(1)}\\.`,
+      ),
+    );
+    // The footer links the same page.
+    expect(email.sent[0].text).toContain(`Unsubscribe: ${link}`);
+  });
+
   it("is never twice in a night", async () => {
     await newsTomorrow();
     const email = fakeEmail();

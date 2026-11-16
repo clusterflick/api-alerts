@@ -115,6 +115,25 @@ starts from now rather than sending a month at once. Signed in as the preview
 is, sharing its limit, only while alerts are on, and behind the capability. If
 it fails, the alerts are still on, and the first night remembers instead.
 
+## Unsubscribing
+
+`src/unsubscribe.ts`, without signing in. Each email carries a link signed for
+its reader and its date (HMAC-SHA256 with `UNSUBSCRIBE_SECRET`), which never
+expires, as an unsubscribe link mustn't:
+
+- **One-click** (`List-Unsubscribe` and `List-Unsubscribe-Post`, RFC 8058, as
+  Gmail and Yahoo ask of senders): the mail client's `POST /unsubscribe?t=…`
+  unsubscribes at once.
+- **The footer link** opens a page with an Unsubscribe button, which makes the
+  same `POST`. Following the link changes nothing, since mail scanners follow
+  links.
+
+Unsubscribing switches the reader's alerts off (only `enabled`, through an
+update mask) and records `stopped: { reason, at, emailOn }` in their ledger, in
+one commit, for the site's panel to say when and from which email. A link for
+an account that's gone does nothing. Switching alerts back on is the reader's
+to do, on the site.
+
 ## The email
 
 `src/digest.ts`: grouped by film, at most 10, each with what's new about it
@@ -178,6 +197,17 @@ rm /tmp/alerts.env
 
 CI deploys with the repository secrets `CLOUDFLARE_API_TOKEN` and
 `CLOUDFLARE_ACCOUNT_ID`, as the other Workers do.
+
+`UNSUBSCRIBE_SECRET` was added after the first deploy, and has to be on the
+Worker before a deploy that requires it. A long random string nobody needs to
+see, so generated straight into the secret:
+
+```sh
+openssl rand -base64 48 | tr -d '\n' | npx wrangler secret put UNSUBSCRIBE_SECRET
+```
+
+Changing it breaks every unsubscribe link already sent, so it's never rotated
+casually.
 
 ## Licence
 

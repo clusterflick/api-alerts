@@ -1,5 +1,6 @@
 import { handlePreview, PREVIEW_PATH } from "./preview";
 import { handleRemember, REMEMBER_PATH } from "./remember";
+import { handleUnsubscribe, UNSUBSCRIBE_PATH } from "./unsubscribe";
 import { runNightly } from "./run";
 
 /**
@@ -15,6 +16,7 @@ export default {
     const { pathname } = new URL(request.url);
     if (pathname === PREVIEW_PATH) return handlePreview(request, env);
     if (pathname === REMEMBER_PATH) return handleRemember(request, env);
+    if (pathname === UNSUBSCRIBE_PATH) return handleUnsubscribe(request, env);
     return new Response("Not found", { status: 404 });
   },
 

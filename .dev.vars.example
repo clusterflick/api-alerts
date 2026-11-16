@@ -5,3 +5,5 @@
 FIREBASE_SERVICE_ACCOUNT={"type":"service_account",...}
 # A local site build, if you're reading the listings from one:
 # SITE_ORIGIN=http://localhost:3000
+# Signs each email's unsubscribe link: any long random string.
+UNSUBSCRIBE_SECRET=

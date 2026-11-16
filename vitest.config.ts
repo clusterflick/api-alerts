@@ -26,6 +26,8 @@ export default defineConfig({
           FIREBASE_SERVICE_ACCOUNT: SERVICE_ACCOUNT,
           SITE_ORIGIN: "https://clusterflick.com",
           DRY_RUN: "true",
+          ALERTS_ORIGIN: "https://alerts.clusterflick.com",
+          UNSUBSCRIBE_SECRET: "a-secret-made-up-for-the-tests",
         },
       },
     }),

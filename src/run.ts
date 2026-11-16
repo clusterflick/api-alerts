@@ -17,6 +17,7 @@ import { getListings } from "./listings";
 import { findNews, readMemory, type Memory } from "./news";
 import { firestore, readReader, watchlistOf } from "./reader";
 import { sendDigest } from "./send";
+import { unsubscribeUrl } from "./unsubscribe";
 
 /**
  * The nightly run: every reader with alerts switched on, their watchlist
@@ -136,12 +137,16 @@ async function runReader(
         firstCheck ? { reason: REASONS.firstCheck } : {},
       );
     } else {
+      const unsubscribe = isDryRun(env)
+        ? undefined
+        : await unsubscribeUrl(env, env.ALERTS_ORIGIN, uid, today);
       const digest = renderDigest({
         data: listings.data,
         news: found.news,
         titles,
         siteOrigin: env.SITE_ORIGIN,
         settingsUrl: `${env.SITE_ORIGIN}/personalise/alerts/`,
+        unsubscribeUrl: unsubscribe,
         now,
       });
       if (isDryRun(env)) {
@@ -165,7 +170,11 @@ async function runReader(
         if (!claimed) throw new Error(`The claim on ${uid}'s ledger is gone`);
         precondition = { updateTime: claimed.updateTime };
         try {
-          const messageId = await sendDigest(env, reader.email, digest);
+          const messageId = await sendDigest(env, reader.email, digest, {
+            // One-click, as Gmail and Yahoo ask of a sender (RFC 8058).
+            "List-Unsubscribe": `<${unsubscribe}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          });
           run = record(AlertRunOutcome.Sent, { films: digest.films });
           console.log(
             JSON.stringify({
