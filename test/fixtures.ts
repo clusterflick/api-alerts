@@ -25,13 +25,15 @@ type Performances = Record<string, number[]>;
 
 /**
  * A film listed at venues, each with its performance times: `{ rio: [t1] }`.
- * One showing per venue.
+ * One showing per venue, first seen by the pipeline at `seen[venue]` when
+ * that's given.
  */
 export function film(
   id: string,
   title: string,
   at: Performances,
   extra: Partial<Movie> = {},
+  seen: Record<string, number> = {},
 ): Movie {
   const showings: Movie["showings"] = {};
   const performances: Movie["performances"] = [];
@@ -42,6 +44,7 @@ export function film(
       category: "movie" as Movie["showings"][string]["category"],
       url: `https://${venueId}.example/${id}`,
       venueId,
+      ...(seen[venueId] !== undefined && { seen: seen[venueId] }),
     };
     for (const time of times) {
       performances.push({

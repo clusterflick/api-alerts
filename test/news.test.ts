@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   everythingShowing,
   findNews,
+  PUBLISH_LAG_MS,
   readMemory,
   type Memory,
 } from "../src/news";
@@ -226,6 +227,137 @@ describe("the watchlist", () => {
       m2: { showing: true, lastShowing: dayFrom(-1), venues: ["rio"] },
     });
     expect(Object.keys(memory)).toEqual(["m1"]);
+  });
+});
+
+describe("a film added since the last run", () => {
+  const HOUR = 3_600_000;
+  /** Last night's run, and the film added this morning. */
+  const LAST_RUN = NOW - 24 * HOUR;
+  const ADDED = NOW - 10 * HOUR;
+
+  function added(
+    data: ReturnType<typeof listings>,
+    {
+      since = LAST_RUN as number | null,
+      addedAt = ADDED,
+      memory = {} as Memory,
+      triggers = QUIET as readonly (
+        "firstListing" | "newVenue" | "newPerformance"
+      )[],
+    } = {},
+  ) {
+    return findNews({
+      data,
+      watchlist: new Set(["m1"]),
+      memory,
+      triggers,
+      today: TODAY,
+      now: NOW,
+      addedAt: { m1: addedAt },
+      since: since ?? undefined,
+    });
+  }
+
+  it("listed only after it was added, is first listed", () => {
+    const { news, memory } = added(
+      listings(
+        film(
+          "m1",
+          "Halloween",
+          { rio: [at(1, 19)] },
+          {},
+          { rio: NOW - 2 * HOUR },
+        ),
+      ),
+    );
+    expect(news[0]).toMatchObject({ filmId: "m1", firstListing: true });
+    expect(memory.m1).toMatchObject({ showing: true, venues: ["rio"] });
+  });
+
+  it("first seen a little before it was added, still wasn't on the site, and is news", () => {
+    const { news } = added(
+      listings(
+        film(
+          "m1",
+          "Halloween",
+          { rio: [at(1, 19)] },
+          {},
+          { rio: ADDED - PUBLISH_LAG_MS + HOUR },
+        ),
+      ),
+    );
+    expect(news[0]).toMatchObject({ firstListing: true });
+  });
+
+  it("already showing when it was added, isn't news: it was on the site", () => {
+    const { news, memory } = added(
+      listings(
+        film(
+          "m1",
+          "Halloween",
+          { rio: [at(1, 19)] },
+          {},
+          { rio: ADDED - PUBLISH_LAG_MS - HOUR },
+        ),
+      ),
+    );
+    expect(news).toEqual([]);
+    expect(memory.m1.showing).toBe(true);
+  });
+
+  it("already showing, reaching a venue after it was added, has that venue as news", () => {
+    const { news } = added(
+      listings(
+        film(
+          "m1",
+          "Halloween",
+          { rio: [at(1, 19)], pcc: [at(2, 20)] },
+          {},
+          { rio: ADDED - 2 * PUBLISH_LAG_MS, pcc: NOW - HOUR },
+        ),
+      ),
+    );
+    expect(news[0]).toMatchObject({ firstListing: false, newVenues: ["pcc"] });
+    expect(news[0].occurrences.map(({ venueId }) => venueId)).toEqual(["pcc"]);
+  });
+
+  it.each([
+    ["with nothing remembered before it", { since: null }],
+    ["added before the last run", { addedAt: LAST_RUN - HOUR }],
+  ])("isn't judged %s: it just starts here", (_, options) => {
+    const { news } = added(
+      listings(
+        film("m1", "Halloween", { rio: [at(1, 19)] }, {}, { rio: NOW - HOUR }),
+      ),
+      options,
+    );
+    expect(news).toEqual([]);
+  });
+
+  it("isn't judged when a showing doesn't say when it was first seen", () => {
+    const { news } = added(
+      listings(
+        film(
+          "m1",
+          "Halloween",
+          { rio: [at(1, 19)], pcc: [at(2, 20)] },
+          {},
+          { rio: NOW - HOUR },
+        ),
+      ),
+    );
+    expect(news).toEqual([]);
+  });
+
+  it("isn't news when that trigger's off", () => {
+    const { news } = added(
+      listings(
+        film("m1", "Halloween", { rio: [at(1, 19)] }, {}, { rio: NOW - HOUR }),
+      ),
+      { triggers: ["newVenue"] },
+    );
+    expect(news).toEqual([]);
   });
 });
 

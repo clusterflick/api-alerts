@@ -14,7 +14,7 @@ import {
 import { timestampToLondonDateString } from "@clusterflick/catalogue/utils/format-date";
 import { renderDigest } from "./digest";
 import { getListings } from "./listings";
-import { findNews, readMemory, type Memory } from "./news";
+import { findNews, readMemory, rememberedSince, type Memory } from "./news";
 import { firestore, readReader, watchlistOf } from "./reader";
 import { sendDigest } from "./send";
 import { unsubscribeUrl } from "./unsubscribe";
@@ -117,7 +117,7 @@ async function runReader(
   } else if (listings instanceof Error) {
     run = record(AlertRunOutcome.Failed, { reason: REASONS.noListings });
   } else {
-    const { ids, titles } = watchlistOf(reader);
+    const { ids, titles, addedAt } = watchlistOf(reader);
     const found = findNews({
       data: listings.data,
       watchlist: ids,
@@ -125,6 +125,8 @@ async function runReader(
       triggers,
       today,
       now,
+      addedAt,
+      since: rememberedSince(runs[0]?.at, ledgerData.rememberedAt),
     });
     // Nothing remembered yet: this run could only remember, and says so,
     // so it isn't mistaken for a quiet night.

@@ -57,12 +57,19 @@ export async function readReader(db: Firestore, uid: string): Promise<Reader> {
   };
 }
 
-/** The watchlist's ids and the titles it was saved with. */
+/** The watchlist's ids, the titles it was saved with, and when each was added. */
 export function watchlistOf(reader: Pick<Reader, "watchlist">) {
   return {
     ids: new Set(Object.keys(reader.watchlist)),
     titles: Object.fromEntries(
       Object.entries(reader.watchlist).map(([id, { title }]) => [id, title]),
+    ),
+    /** When each was added; an entry saved without a time reads as 0. */
+    addedAt: Object.fromEntries(
+      Object.entries(reader.watchlist).map(([id, { addedAt }]) => [
+        id,
+        addedAt,
+      ]),
     ),
   };
 }

@@ -91,6 +91,35 @@ describe("the next night", () => {
     }
   });
 
+  it("tells of a film added today and listed before the run", async () => {
+    const store = reader("u1", { m1: "Halloween" });
+    let movies: Movie[] = [];
+    serve({ movies: () => movies, store });
+    await runNight(NOW);
+
+    // Added the next morning, while not showing; listed that afternoon.
+    const users = store["users/u1"] as {
+      watchlist: Record<string, { title: string; addedAt: number }>;
+    };
+    users.watchlist.m2 = {
+      title: "Cléo from 5 to 7",
+      addedAt: NOW + 14 * 3_600_000,
+    };
+    movies = [
+      film(
+        "m2",
+        "Cléo from 5 to 7",
+        { bfi: [at(2, 14)] },
+        {},
+        {
+          bfi: NOW + 20 * 3_600_000,
+        },
+      ),
+    ];
+    vi.setSystemTime(NEXT_NIGHT);
+    expect(await runNight(NEXT_NIGHT)).toMatchObject({ previewed: 1 });
+  });
+
   it("with nothing new is a quiet night, not a first check", async () => {
     const store = reader("u1", { m1: "Halloween" });
     serve({ movies: () => [], store });

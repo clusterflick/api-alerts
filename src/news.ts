@@ -12,10 +12,23 @@ import {
  * sees, with every venue a film is at, and the ledger is what they've been
  * told about, or saw was there already.
  *
- * A film the ledger doesn't know yet, being new to the watchlist or the
- * alerts, is remembered as it stands and isn't news: a film already showing
- * when it's added is one the reader is looking at on the site.
+ * A film the ledger doesn't know yet was added to the watchlist since the
+ * last run, which knows nothing of what it was doing then. It's judged by
+ * when it was added: showings the pipeline first saw after that are news
+ * (`seen`, which the site's listings carry for each showing), and a film
+ * already showing when it was added is one the reader was looking at on the
+ * site. Without what that needs, it's remembered as it stands, and isn't news.
  */
+
+/**
+ * How long before a film was added a showing can have been first seen and
+ * still not have been on the site: the pipeline sees a showing some hours
+ * before the site publishes it, and someone adding a film in between added
+ * one that wasn't on. Too long, and a film the reader saw on the site is
+ * announced to them that night; too short, and one that wasn't is never
+ * announced at all, which is the worse of the two.
+ */
+export const PUBLISH_LAG_MS = 6 * 60 * 60_000;
 
 /** A film's place in the ledger: what the last run saw of it. */
 export type FilmMemory = {
@@ -43,6 +56,8 @@ export type Occurrence = {
   listing: Movie;
   venueId: string;
   time: number;
+  /** When the pipeline first saw its showing, epoch ms, when it says. */
+  seen?: number;
 };
 
 export type FilmNews = {
@@ -92,6 +107,7 @@ export function findOccurrences(
           listing,
           venueId: showing.venueId,
           time: performance.time,
+          ...(typeof showing.seen === "number" && { seen: showing.seen }),
         });
         found.set(filmId, list);
       }
@@ -112,6 +128,8 @@ export function findNews({
   triggers,
   today,
   now,
+  addedAt = {},
+  since,
 }: {
   data: CinemaData;
   watchlist: ReadonlySet<string>;
@@ -119,6 +137,14 @@ export function findNews({
   triggers: readonly AlertTrigger[];
   today: string;
   now: number;
+  /** When each watchlist film was added, epoch ms. */
+  addedAt?: Record<string, number>;
+  /**
+   * When the ledger last remembered the watchlist: the last run, or alerts
+   * switched on. A film it doesn't know, added after this, is judged by when
+   * it was added; without it, any film it doesn't know just starts here.
+   */
+  since?: number;
 }): NewsResult {
   const on = new Set(triggers);
   const occurrencesOf = findOccurrences(data, watchlist, now);
@@ -144,6 +170,12 @@ export function findNews({
     };
 
     if (!known) {
+      const added = addedAt[filmId];
+      const sinceAdded =
+        showing && added && since !== undefined && added >= since
+          ? sinceAddition(occurrences, added, on)
+          : null;
+      if (sinceAdded) news.push({ filmId, ...sinceAdded });
       next[filmId] = remembered;
       continue;
     }
@@ -199,6 +231,45 @@ export function findNews({
 }
 
 /**
+ * The news about a film added since the last run, from when its showings
+ * were first seen against when it was added: listed only after it was added
+ * is a first listing; already listed, the venues it reached after are new.
+ * Null when there's nothing new, or a showing doesn't say when it was first
+ * seen, so it can't be told.
+ */
+function sinceAddition(
+  occurrences: Occurrence[],
+  added: number,
+  on: ReadonlySet<AlertTrigger>,
+): Omit<FilmNews, "filmId"> | null {
+  if (occurrences.some(({ seen }) => seen === undefined)) return null;
+  const cutoff = added - PUBLISH_LAG_MS;
+  const before = occurrences.filter(({ seen }) => seen! <= cutoff);
+  const after = occurrences.filter(({ seen }) => seen! > cutoff);
+  if (after.length === 0) return null;
+  if (before.length === 0) {
+    return on.has("firstListing")
+      ? { firstListing: true, newVenues: [], newPerformances: 0, occurrences }
+      : null;
+  }
+  if (!on.has("newVenue")) return null;
+  const known = new Set(before.map(({ venueId }) => venueId));
+  const newVenues = [
+    ...new Set(
+      after.map(({ venueId }) => venueId).filter((id) => !known.has(id)),
+    ),
+  ];
+  if (newVenues.length === 0) return null;
+  const reached = new Set(newVenues);
+  return {
+    firstListing: false,
+    newVenues,
+    newPerformances: 0,
+    occurrences: occurrences.filter(({ venueId }) => reached.has(venueId)),
+  };
+}
+
+/**
  * Every watchlist film showing, as if each were first listed: what the email
  * looks like with real listings, for the preview, before any run has built a
  * memory to compare with.
@@ -247,4 +318,19 @@ export function readMemory(value: unknown): Memory {
     };
   }
   return memory;
+}
+
+/**
+ * When the ledger last remembered the watchlist, for `findNews`'s `since`:
+ * the later of its last run and alerts last being switched on.
+ */
+export function rememberedSince(
+  lastRunAt: number | undefined,
+  rememberedAt: unknown,
+): number | undefined {
+  const times = [
+    lastRunAt,
+    typeof rememberedAt === "number" ? rememberedAt : undefined,
+  ].filter((time): time is number => time !== undefined);
+  return times.length > 0 ? Math.max(...times) : undefined;
 }

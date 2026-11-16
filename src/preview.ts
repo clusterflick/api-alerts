@@ -7,7 +7,12 @@ import { ListingsUnavailableError } from "@clusterflick/catalogue/utils/fetch-li
 import { timestampToLondonDateString } from "@clusterflick/catalogue/utils/format-date";
 import { renderDigest } from "./digest";
 import { getListings } from "./listings";
-import { everythingShowing, findNews, readMemory } from "./news";
+import {
+  everythingShowing,
+  findNews,
+  readMemory,
+  rememberedSince,
+} from "./news";
 import { firestore, readReader, watchlistOf } from "./reader";
 import { replyTo, signedInReader } from "./site-request";
 
@@ -60,7 +65,7 @@ export async function handlePreview(
     const reader = await readReader(firestore(env), uid);
     if (!reader.granted) return reply(403, { error: "not_granted" });
     const { data } = await getListings(env.SITE_ORIGIN, now);
-    const { ids, titles } = watchlistOf(reader);
+    const { ids, titles, addedAt } = watchlistOf(reader);
     const ledger = parseAlertLedger(reader.ledger?.data);
     const memory = readMemory(reader.ledger?.data.films);
     const baseline =
@@ -77,6 +82,11 @@ export async function handlePreview(
               triggers,
               today: timestampToLondonDateString(now),
               now,
+              addedAt,
+              since: rememberedSince(
+                ledger.runs[0]?.at,
+                reader.ledger?.data.rememberedAt,
+              ),
             }).news;
     return reply(200, {
       mode: mode satisfies Mode,

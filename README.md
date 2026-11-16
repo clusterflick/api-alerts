@@ -32,10 +32,17 @@ have every venue a film is at, and formats, notes and links already joined in.
 | `newVenue`       | It's at a venue the ledger hasn't seen it at.                                                        |
 | `newPerformance` | A performance the ledger doesn't know, at any venue.                                                 |
 
-A film the ledger doesn't know yet, new to the watchlist, is remembered as it
-stands and isn't news (switching alerts on remembers the whole watchlist at
-once, below): one already showing when it's added is
-one the reader is looking at on the site. A trigger that's off still
+A film the ledger doesn't know yet was added since the last run, which knows
+nothing of what it was doing then, so it's judged by when it was added
+(`addedAt`) against when the pipeline first saw each of its showings (`seen`,
+in the site's listings): listed only after it was added is a first listing,
+and venues it reached after are new, so a film added in the morning and listed
+that afternoon is news that night. A showing first seen up to 6 hours before
+the film was added counts as after (`PUBLISH_LAG_MS`): the site publishes some
+hours after the pipeline sees a showing. A film already showing when it was
+added isn't news: the reader was looking at it on the site. Without a run or a
+switch-on to judge from, or a `seen` on every showing, it's remembered as it
+stands and isn't news. A trigger that's off still
 remembers, so switching it on doesn't report everything at once; the
 performances are only kept while `newPerformance` is on, so the ledger stays
 small. A film taken off the watchlist is forgotten. A film screened inside an
