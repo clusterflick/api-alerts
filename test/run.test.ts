@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { REASONS } from "../src/run";
 import { at, dayFrom, film, NOW, TODAY } from "./fixtures";
 import {
+  fakeEmail,
   logged,
   reader,
   resetWorker,
@@ -174,6 +175,55 @@ describe("a reader who can't be sent anything", () => {
     serve({ movies: () => [], store });
     expect(await runNight(NOW)).toMatchObject({ readers: 0 });
     expect(store["users/u1/meta/alert-ledger"]).toBeUndefined();
+  });
+});
+
+describe("a night that goes wrong", () => {
+  it("is told to us that evening, with who and why", async () => {
+    const store = {
+      ...reader("u1", { m1: "Halloween" }, { email: null }),
+      ...reader("u2", { m2: "Cléo from 5 to 7" }),
+    };
+    serve({ movies: () => [], store });
+    const email = fakeEmail();
+    await expect(runNight(NOW, { EMAIL: email.binding })).rejects.toThrow();
+    expect(email.sent).toHaveLength(1);
+    expect(email.sent[0]).toMatchObject({
+      to: "hello@clusterflick.com",
+      subject: `Alerts: problems with the run for ${TODAY}`,
+    });
+    expect(email.sent[0].text).toContain(`u1: failed, ${REASONS.noAddress}`);
+    expect(email.sent[0].text).not.toContain("u2:");
+  });
+
+  it("when the listings can't be read, says so", async () => {
+    serve({
+      movies: () => [],
+      store: reader("u1", { m1: "Halloween" }),
+      siteStatus: 503,
+    });
+    const email = fakeEmail();
+    await expect(runNight(NOW, { EMAIL: email.binding })).rejects.toThrow();
+    expect(email.sent[0].text).toContain("Listings: couldn't be read");
+  });
+
+  it("still fails the run when the notice can't be sent", async () => {
+    serve({
+      movies: () => [],
+      store: reader("u1", {}, { email: null }),
+    });
+    await expect(
+      runNight(NOW, { EMAIL: fakeEmail("E_RATE_LIMIT_EXCEEDED").binding }),
+    ).rejects.toThrow("had failures");
+  });
+});
+
+describe("a night that goes well", () => {
+  it("tells us nothing", async () => {
+    serve({ movies: () => [], store: reader("u1", { m1: "Halloween" }) });
+    const email = fakeEmail();
+    await runNight(NOW, { EMAIL: email.binding });
+    expect(email.sent).toEqual([]);
   });
 });
 

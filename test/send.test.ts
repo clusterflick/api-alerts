@@ -151,7 +151,9 @@ describe("a claim left by a run that stopped", () => {
       EMAIL: email.binding,
     });
     expect(night).toMatchObject({ notResent: 1 });
-    expect(email.sent).toEqual([]);
+    // No email to the reader; a notice to us.
+    expect(email.sent.map(({ to }) => to)).toEqual(["hello@clusterflick.com"]);
+    expect(email.sent[0].text).toContain("u1: notResent");
     expect(ledger(store).runs[0]).toMatchObject({
       outcome: "notResent",
       reason: REASONS.notResent,

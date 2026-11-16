@@ -16,7 +16,7 @@ import { renderDigest } from "./digest";
 import { getListings } from "./listings";
 import { findNews, readMemory, rememberedSince, type Memory } from "./news";
 import { firestore, readReader, watchlistOf } from "./reader";
-import { sendDigest } from "./send";
+import { FROM, sendDigest } from "./send";
 import { unsubscribeUrl } from "./unsubscribe";
 
 /**
@@ -86,7 +86,7 @@ type Context = {
 async function runReader(
   context: Context,
   uid: string,
-): Promise<AlertRunOutcome | "alreadyRun"> {
+): Promise<AlertRun | "alreadyRun"> {
   const { db, env, listings, today, now } = context;
   const reader = await readReader(db, uid);
   // Without the claim: it's for one night's run alone.
@@ -214,7 +214,7 @@ async function runReader(
       precondition,
     },
   ]);
-  return run.outcome;
+  return run;
 }
 
 /**
@@ -284,19 +284,27 @@ export async function runNightly(env: Env, now = Date.now()) {
   };
   const context: Context = { db, env, listings, today, now };
 
+  // What went wrong for whom, for the night's notice.
+  const problems: { uid: string; outcome: string; reason: string }[] = [];
+
   // One at a time: a handful of readers, and each write is checked.
   for (const uid of uids) {
     let outcome: AlertRunOutcome | "alreadyRun";
+    let reason: string | undefined;
     try {
+      let run: AlertRun | "alreadyRun";
       try {
-        outcome = await runReader(context, uid);
+        run = await runReader(context, uid);
       } catch (error) {
         // Written by something else since it was read: once more, afresh.
         if (!(error instanceof PreconditionError)) throw error;
-        outcome = await runReader(context, uid);
+        run = await runReader(context, uid);
       }
+      outcome = run === "alreadyRun" ? run : run.outcome;
+      reason = run === "alreadyRun" ? undefined : run.reason;
     } catch (error) {
       outcome = AlertRunOutcome.Failed;
+      reason = `${REASONS.unreadable} (${error instanceof Error ? error.message : String(error)})`;
       console.error(
         JSON.stringify({
           event: "alerts-reader-failed",
@@ -313,15 +321,73 @@ export async function runNightly(env: Env, now = Date.now()) {
     }
     night[outcome]++;
     console.log(JSON.stringify({ event: "alerts-reader", uid, outcome }));
+    if (
+      outcome === AlertRunOutcome.Failed ||
+      outcome === AlertRunOutcome.NotResent
+    ) {
+      problems.push({ uid, outcome, reason: reason ?? "" });
+    }
   }
 
   await db.commit([{ set: `alertRuns/${today}`, data: { ...night } }]);
   console.log(JSON.stringify({ event: "alerts-night", ...night }));
 
+  if (listings instanceof Error || problems.length > 0) {
+    await tellOfProblems(env, night, listings, problems);
+  }
   if (listings instanceof Error || night[AlertRunOutcome.Failed] > 0) {
     throw new Error(
       `Alerts run for ${today} had failures: ${JSON.stringify(night)}`,
     );
   }
   return night;
+}
+
+/**
+ * A night that went wrong, told to `REPLY_TO`, so it's seen that evening
+ * rather than whenever someone next opens the logs or their panel. A notice
+ * that can't be sent is logged; the run still fails as it would have.
+ */
+async function tellOfProblems(
+  env: Env,
+  night: NightRecord,
+  listings: Listings | Error,
+  problems: { uid: string; outcome: string; reason: string }[],
+) {
+  const counts = Object.entries(night)
+    .filter(
+      ([key, value]) =>
+        typeof value === "number" &&
+        value > 0 &&
+        !["at", "readers"].includes(key),
+    )
+    .map(([key, value]) => `${key}: ${value}`)
+    .join(", ");
+  const text = [
+    `The alerts run for ${night.on} had problems.`,
+    "",
+    `Readers: ${night.readers} (${counts || "none checked"})`,
+    `Listings: ${listings instanceof Error ? `couldn't be read: ${listings.message}` : night.release}`,
+    `Sending: ${night.dryRun ? "off (DRY_RUN)" : "on"}`,
+    ...(problems.length > 0
+      ? ["", ...problems.map((p) => `${p.uid}: ${p.outcome}, ${p.reason}`)]
+      : []),
+    "",
+    "Each reader's panel says what happened to them. Workers Logs have the rest.",
+  ].join("\n");
+  try {
+    await env.EMAIL.send({
+      from: FROM,
+      to: env.REPLY_TO,
+      subject: `Alerts: problems with the run for ${night.on}`,
+      text,
+    });
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        event: "alerts-problems-notice-failed",
+        message: error instanceof Error ? error.message : String(error),
+      }),
+    );
+  }
 }

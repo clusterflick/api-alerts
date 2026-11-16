@@ -90,7 +90,8 @@ run the same night finds tonight's entry and leaves them be.
    keeps their news for the next night.
 4. Record the night in `alertRuns/{date}` (readers, and how many of each
    outcome), which no client can read. Any failure fails the run, so it shows
-   in Workers Logs.
+   in Workers Logs, and a night with a failure or a `notResent` is emailed to
+   `REPLY_TO` that evening: who, and why.
 
 Logs say what happened to each reader by uid, never what's on their watchlist.
 
