@@ -43,6 +43,12 @@ export const REASONS = {
   noAddress: "we don't know where to send them: save your alert settings again",
   noListings: "the listings couldn't be read",
   unreadable: "your alerts couldn't be read",
+  /**
+   * For "nothing new", when there was nothing to compare with: alerts
+   * switched on without the watchlist remembered, so this run did it.
+   */
+  firstCheck:
+    "the first check, which noted your watchlist as it stands; news starts from the next",
 } as const;
 
 /** The night's record, `alertRuns/{date}`: only this Worker reads it. */
@@ -109,9 +115,15 @@ async function runReader(
       today,
       now,
     });
+    // Nothing remembered yet: this run could only remember, and says so,
+    // so it isn't mistaken for a quiet night.
+    const firstCheck = Object.keys(memory).length === 0 && ids.size > 0;
     memory = found.memory;
     if (found.news.length === 0) {
-      run = record(AlertRunOutcome.NothingNew);
+      run = record(
+        AlertRunOutcome.NothingNew,
+        firstCheck ? { reason: REASONS.firstCheck } : {},
+      );
     } else {
       const digest = renderDigest({
         data: listings.data,

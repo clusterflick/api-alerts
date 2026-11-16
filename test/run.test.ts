@@ -46,8 +46,14 @@ describe("the first night", () => {
       nothingNew: 1,
       dryRun: true,
     });
+    // Said to be the first check, so it isn't taken for a quiet night.
     expect(ledger(store).runs).toEqual([
-      { on: TODAY, at: NOW, outcome: "nothingNew" },
+      {
+        on: TODAY,
+        at: NOW,
+        outcome: "nothingNew",
+        reason: REASONS.firstCheck,
+      },
     ]);
     expect(ledger(store).films).toEqual({
       m1: { showing: false, venues: [] },
@@ -83,6 +89,19 @@ describe("the next night", () => {
         /^(clusterflick\.com|oauth2\.googleapis\.com|firestore\.googleapis\.com)$/,
       );
     }
+  });
+
+  it("with nothing new is a quiet night, not a first check", async () => {
+    const store = reader("u1", { m1: "Halloween" });
+    serve({ movies: () => [], store });
+    await runNight(NOW);
+    vi.setSystemTime(NEXT_NIGHT);
+    await runNight(NEXT_NIGHT);
+    expect(ledger(store).runs[0]).toEqual({
+      on: dayFrom(1),
+      at: NEXT_NIGHT,
+      outcome: "nothingNew",
+    });
   });
 
   it("isn't run twice in one night", async () => {
