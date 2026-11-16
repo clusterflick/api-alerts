@@ -14,8 +14,8 @@ counts as news, at `/personalise/alerts/` on the site.
 
 **For now it sends nothing** (`DRY_RUN`): the nightly run works out each
 reader's email and records it as one that would have gone, and the site's
-settings page previews it. Sending, one-click unsubscribe and bounce handling
-come next.
+settings page previews it. Sending is built; one-click unsubscribe and bounce
+handling come before it's switched on.
 
 It's at `https://alerts.clusterflick.com`.
 
@@ -72,6 +72,16 @@ run the same night finds tonight's entry and leaves them be.
    news, the email, and the ledger written. A reader without the capability is
    skipped and told why; one with no address saved fails and is told to save
    again.
+   Sending (`src/send.ts`, once `DRY_RUN` is `"false"`) is through Cloudflare
+   Email Service's binding, from `alert@alerts.clusterflick.com` (the one
+   address the binding allows), with replies to `REPLY_TO`. Before sending,
+   the run claims the night's email in the ledger (`sending: <date>`, written
+   with a precondition, so only one run can); after, it records the run and
+   clears the claim. A run that finds tonight's claim with no run recorded
+   can't tell whether that email went, so it doesn't send, records
+   `notResent`, and remembers as if it went: missing an email is better than
+   sending one twice. A send Email Service refuses fails the reader's run and
+   keeps their news for the next night.
 4. Record the night in `alertRuns/{date}` (readers, and how many of each
    outcome), which no client can read. Any failure fails the run, so it shows
    in Workers Logs.

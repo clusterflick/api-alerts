@@ -9,12 +9,14 @@ import {
   isUid,
   PreconditionError,
   type Firestore,
+  type Precondition,
 } from "@clusterflick/accounts/firestore";
 import { timestampToLondonDateString } from "@clusterflick/catalogue/utils/format-date";
 import { renderDigest } from "./digest";
 import { getListings } from "./listings";
 import { findNews, readMemory, type Memory } from "./news";
 import { firestore, readReader, watchlistOf } from "./reader";
+import { sendDigest } from "./send";
 
 /**
  * The nightly run: every reader with alerts switched on, their watchlist
@@ -49,6 +51,9 @@ export const REASONS = {
    */
   firstCheck:
     "the first check, which noted your watchlist as it stands; news starts from the next",
+  sendFailed: "the email couldn't be sent",
+  notResent:
+    "we can't tell whether that night's email went, so it wasn't sent again",
 } as const;
 
 /** The night's record, `alertRuns/{date}`: only this Worker reads it. */
@@ -83,7 +88,12 @@ async function runReader(
 ): Promise<AlertRunOutcome | "alreadyRun"> {
   const { db, env, listings, today, now } = context;
   const reader = await readReader(db, uid);
-  const ledgerData = reader.ledger?.data ?? {};
+  // Without the claim: it's for one night's run alone.
+  const { sending, ...ledgerData } = reader.ledger?.data ?? {};
+  // The precondition the ledger's write needs, moved on by a claim.
+  let precondition: Precondition = reader.ledger
+    ? { updateTime: reader.ledger.updateTime }
+    : { exists: false };
   const { runs } = parseAlertLedger(ledgerData);
   if (runs.some((run) => run.on === today)) return "alreadyRun";
 
@@ -118,6 +128,7 @@ async function runReader(
     // Nothing remembered yet: this run could only remember, and says so,
     // so it isn't mistaken for a quiet night.
     const firstCheck = Object.keys(memory).length === 0 && ids.size > 0;
+    const remembered = memory;
     memory = found.memory;
     if (found.news.length === 0) {
       run = record(
@@ -135,9 +146,48 @@ async function runReader(
       });
       if (isDryRun(env)) {
         run = record(AlertRunOutcome.Previewed, { films: digest.films });
+      } else if (sending === today) {
+        // A run that claimed tonight's email and stopped before recording
+        // it: it may have gone. Never twice, so this run doesn't send, and
+        // remembers as if it went.
+        run = record(AlertRunOutcome.NotResent, { reason: REASONS.notResent });
+        console.error(JSON.stringify({ event: "alerts-not-resent", uid }));
       } else {
-        // Sending comes with the next phase; until then, nothing goes.
-        throw new Error("Sending isn't built yet: set DRY_RUN");
+        // Claimed before sending, so only one run can send tonight's.
+        await db.commit([
+          {
+            set: alertLedgerPath(uid),
+            data: { ...ledgerData, sending: today },
+            precondition,
+          },
+        ]);
+        const claimed = await db.getVersioned(alertLedgerPath(uid));
+        if (!claimed) throw new Error(`The claim on ${uid}'s ledger is gone`);
+        precondition = { updateTime: claimed.updateTime };
+        try {
+          const messageId = await sendDigest(env, reader.email, digest);
+          run = record(AlertRunOutcome.Sent, { films: digest.films });
+          console.log(
+            JSON.stringify({
+              event: "alerts-sent",
+              uid,
+              messageId,
+              films: digest.films,
+            }),
+          );
+        } catch (error) {
+          // Refused, so nothing went: the news stays news for tomorrow.
+          memory = remembered;
+          run = record(AlertRunOutcome.Failed, { reason: REASONS.sendFailed });
+          console.error(
+            JSON.stringify({
+              event: "alerts-send-failed",
+              uid,
+              code: (error as { code?: unknown })?.code ?? null,
+              message: error instanceof Error ? error.message : String(error),
+            }),
+          );
+        }
       }
     }
   }
@@ -150,9 +200,7 @@ async function runReader(
         films: memory,
         runs: [run, ...runs].slice(0, MAX_ALERT_RUNS),
       },
-      precondition: reader.ledger
-        ? { updateTime: reader.ledger.updateTime }
-        : { exists: false },
+      precondition,
     },
   ]);
   return run.outcome;

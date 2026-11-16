@@ -269,8 +269,26 @@ export function resetWorker() {
 }
 
 /** The night's run at `scheduledTime`, and the night's record. */
-export function runNight(scheduledTime: number) {
-  return runNightly(env, scheduledTime);
+export function runNight(scheduledTime: number, overrides: Partial<Env> = {}) {
+  return runNightly({ ...env, ...overrides }, scheduledTime);
+}
+
+/**
+ * Email Service, faked: every message it was asked to send, refusing them
+ * all with `refuse`'s code when it's set. Nothing leaves the test.
+ */
+export function fakeEmail(refuse?: string) {
+  const sent: EmailMessageBuilder[] = [];
+  const binding = {
+    async send(message: EmailMessageBuilder) {
+      if (refuse) {
+        throw Object.assign(new Error(`Refused: ${refuse}`), { code: refuse });
+      }
+      sent.push(message);
+      return { messageId: `message-${sent.length}` };
+    },
+  } as unknown as SendEmail;
+  return { binding, sent };
 }
 
 /** The cron calling the Worker, at `scheduledTime`. */

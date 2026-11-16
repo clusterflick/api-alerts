@@ -21,7 +21,19 @@
     // While alerts are being tried out, the nightly run works out each
     // reader's email and records it, and sends nothing.
     "DRY_RUN": "true",
+    // Where replies to an alert go: an address that's read, on the root
+    // domain's own mail (Fastmail), not alerts.clusterflick.com, which
+    // receives nothing.
+    "REPLY_TO": "hello@clusterflick.com",
   },
+  // Cloudflare Email Service, sending from alerts.clusterflick.com (onboarded
+  // in the dashboard), and only ever from the one address.
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "allowed_sender_addresses": ["alert@alerts.clusterflick.com"],
+    },
+  ],
   // This Worker's own service account, with Cloud Datastore User: it reads a
   // reader's settings, capabilities and watchlist, and writes their ledger.
   // Set with `wrangler secret put`, locally in `.dev.vars`.
