@@ -15,7 +15,7 @@ counts as news, at `/personalise/alerts/` on the site.
 **For now it sends nothing** (`DRY_RUN`): the nightly run works out each
 reader's email and records it as one that would have gone, and the site's
 settings page previews it. Sending is built; one-click unsubscribe and bounce
-handling come before it's switched on.
+handling is built too; the privacy page comes before it's switched on.
 
 It's at `https://alerts.clusterflick.com`.
 
@@ -133,6 +133,27 @@ update mask) and records `stopped: { reason, at, emailOn }` in their ledger, in
 one commit, for the site's panel to say when and from which email. A link for
 an account that's gone does nothing. Switching alerts back on is the reader's
 to do, on the site.
+
+## Bounces and complaints
+
+`src/events.ts`, the `alert-events` queue's consumer. An event subscription on
+`alerts.clusterflick.com`'s sending (set up in the dashboard: Queues →
+`alert-events` → Subscriptions, for bounced, complained, rejected and failed)
+publishes what Email Service says happened to each email:
+
+| Event                                           | Done                                                                                 |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Hard bounce, spam complaint                     | The reader's alerts switched off, `stopped` in their ledger saying why, and a notice |
+| Soft bounce (retries ran out), rejected, failed | A notice only: a full mailbox or our own mistake isn't the reader asking to stop     |
+| Delivered, deferred                             | Nothing                                                                              |
+
+The reader is found by the address, which their alert settings hold (a
+collection-group query on `meta`'s `email`, which needs its index in the
+site's `firestore.indexes.json`). The notice goes to `REPLY_TO`, never about
+`REPLY_TO` itself, so a bounce can't loop. Email Service suppresses bounced
+and complaining addresses itself as well; this is so the reader's panel says
+why, and we know. A message that fails (Firestore down) is retried, up to 5
+times.
 
 ## The email
 

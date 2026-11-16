@@ -1,3 +1,4 @@
+import { handleEmailEvents } from "./events";
 import { handlePreview, PREVIEW_PATH } from "./preview";
 import { handleRemember, REMEMBER_PATH } from "./remember";
 import { handleUnsubscribe, UNSUBSCRIBE_PATH } from "./unsubscribe";
@@ -6,7 +7,9 @@ import { runNightly } from "./run";
 /**
  * Clusterflick's email alerts: the nightly run (`src/run.ts`), and what the
  * site's settings page asks for: a preview (`src/preview.ts`), and the
- * watchlist remembered when alerts are switched on (`src/remember.ts`).
+ * watchlist remembered when alerts are switched on (`src/remember.ts`);
+ * one-click unsubscribe (`src/unsubscribe.ts`); and what Email Service says
+ * happened to what was sent (`src/events.ts`).
  *
  * Only handlers are exported from here: workerd refuses anything else in the
  * entry module.
@@ -22,5 +25,9 @@ export default {
 
   async scheduled(controller, env) {
     await runNightly(env, controller.scheduledTime);
+  },
+
+  async queue(batch, env) {
+    await handleEmailEvents(batch, env);
   },
 } satisfies ExportedHandler<Env>;

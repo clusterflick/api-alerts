@@ -53,6 +53,14 @@
       "simple": { "limit": 10, "period": 60 },
     },
   ],
+  // What Email Service says happened to what was sent: an event subscription
+  // on alerts.clusterflick.com's sending (bounced, complained, rejected,
+  // failed), set up in the dashboard, publishes to this queue.
+  "queues": {
+    "consumers": [
+      { "queue": "alert-events", "max_batch_size": 10, "max_retries": 5 },
+    ],
+  },
   // 20:00 UTC: 8pm in winter, 9pm under BST, for now.
   "triggers": { "crons": ["0 20 * * *"] },
   // api-tmdb-search has 8787, api-profiles 8788, api-mcp 8789.
