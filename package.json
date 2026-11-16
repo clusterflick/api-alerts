@@ -10,8 +10,8 @@
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
-    "@clusterflick/accounts": "file:../../../../../../private/tmp/claude-501/-Users-alib-Documents-projects-clusterflick-scripts/19e8027d-c24c-4208-a1f0-70d207f79905/scratchpad/packs-alerts/clusterflick-accounts-0.2.0.tgz",
-    "@clusterflick/catalogue": "file:../../../../../../private/tmp/claude-501/-Users-alib-Documents-projects-clusterflick-scripts/19e8027d-c24c-4208-a1f0-70d207f79905/scratchpad/packs-alerts/clusterflick-catalogue-0.3.0.tgz"
+    "@clusterflick/accounts": "0.2.0",
+    "@clusterflick/catalogue": "0.3.0"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "1.8.0",
