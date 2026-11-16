@@ -2,20 +2,14 @@ import {
   parseAlertLedger,
   parseAlertSettings,
 } from "@clusterflick/accounts/alerts";
-import {
-  AuthError,
-  FIREBASE_JWKS,
-  getBearerToken,
-  verifyFirebaseToken,
-} from "@clusterflick/accounts/auth";
 import { UpstreamError } from "@clusterflick/accounts/google-auth";
 import { ListingsUnavailableError } from "@clusterflick/catalogue/utils/fetch-listings";
 import { timestampToLondonDateString } from "@clusterflick/catalogue/utils/format-date";
-import type { JWTVerifyGetKey } from "jose";
 import { renderDigest } from "./digest";
 import { getListings } from "./listings";
 import { everythingShowing, findNews, readMemory } from "./news";
 import { firestore, readReader, watchlistOf } from "./reader";
+import { replyTo, signedInReader } from "./site-request";
 
 /**
  * `POST /preview`: the email a reader's alerts would send, worked out now and
@@ -38,51 +32,15 @@ export const PREVIEW_PATH = "/preview";
 const MODES = ["sinceLastRun", "everythingShowing"] as const;
 type Mode = (typeof MODES)[number];
 
-let keys: JWTVerifyGetKey = FIREBASE_JWKS;
-
-/** For the tests: Firebase's signing keys, as a local key set. */
-export function useFirebaseKeys(local: JWTVerifyGetKey) {
-  keys = local;
-}
-
-function cors(env: Env, request: Request): Record<string, string> {
-  return request.headers.get("Origin") === env.SITE_ORIGIN
-    ? {
-        "Access-Control-Allow-Origin": env.SITE_ORIGIN,
-        "Access-Control-Allow-Methods": "POST",
-        "Access-Control-Allow-Headers": "Authorization, Content-Type",
-        "Access-Control-Max-Age": "600",
-        Vary: "Origin",
-      }
-    : { Vary: "Origin" };
-}
-
 export async function handlePreview(
   request: Request,
   env: Env,
   now = Date.now(),
 ): Promise<Response> {
-  const headers = { ...cors(env, request), "Cache-Control": "no-store" };
-  const reply = (status: number, body?: unknown) =>
-    body === undefined
-      ? new Response(null, { status, headers })
-      : Response.json(body, { status, headers });
-
-  if (request.method === "OPTIONS") return reply(204);
-  if (request.method !== "POST") return reply(405, { error: "method" });
-
-  let uid: string;
-  try {
-    const token = getBearerToken(request);
-    if (!token) throw new AuthError("Missing token", 401);
-    uid = await verifyFirebaseToken(token, env.FIREBASE_PROJECT_ID, keys);
-  } catch (error) {
-    if (!(error instanceof AuthError)) throw error;
-    return reply(error.status, { error: error.message });
-  }
-
-  const { success } = await env.PREVIEW_LIMIT.limit({ key: uid });
-  if (!success) return reply(429, { error: "rate_limited" });
+  const reply = replyTo(env, request);
+  const signedIn = await signedInReader(request, env, reply);
+  if ("response" in signedIn) return signedIn.response;
+  const { uid } = signedIn;
 
   let body: { notify?: unknown; mode?: unknown };
   try {

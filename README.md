@@ -33,8 +33,9 @@ have every venue a film is at, and formats, notes and links already joined in.
 | `newVenue`       | It's at a venue the ledger hasn't seen it at.                                                        |
 | `newPerformance` | A performance the ledger doesn't know, at any venue.                                                 |
 
-A film the ledger doesn't know yet, new to the watchlist or the alerts, is
-remembered as it stands and isn't news: one already showing when it's added is
+A film the ledger doesn't know yet, new to the watchlist, is remembered as it
+stands and isn't news (switching alerts on remembers the whole watchlist at
+once, below): one already showing when it's added is
 one the reader is looking at on the site. A trigger that's off still
 remembers, so switching it on doesn't report everything at once; the
 performances are only kept while `newPerformance` is on, so the ledger stays
@@ -80,7 +81,8 @@ Logs say what happened to each reader by uid, never what's on their watchlist.
 ## The preview
 
 `POST /preview`, signed in with the reader's Firebase ID token, from the
-site's pages only (CORS), behind the capability, and 10 a minute per reader:
+site's pages only (CORS), behind the capability, and 10 a minute per reader
+(`READER_LIMIT`, shared with `/remember`):
 the email their alerts would send, worked out now, never sent or written
 (`src/preview.ts`). It takes the triggers being edited, so it follows the
 switches on the settings page.
@@ -90,6 +92,18 @@ switches on the settings page.
   and it says so (`baseline: true`).
 - `{ "mode": "everythingShowing", "notify": [...] }`: every watchlist film
   that's showing, as if each were new, to see the email with real listings.
+
+## Switching alerts on
+
+`POST /remember`, which the settings page sends when a reader switches alerts
+on (`src/remember.ts`): every film on their watchlist remembered as it stands
+now, as a first run would, and no run recorded. That night's run then compares
+against the moment they switched on, so a film listed that afternoon is news
+the same evening, rather than the first night only remembering. Every
+switch-on, not just the first, so turning alerts back on after a month off
+starts from now rather than sending a month at once. Signed in as the preview
+is, sharing its limit, only while alerts are on, and behind the capability. If
+it fails, the alerts are still on, and the first night remembers instead.
 
 ## The email
 

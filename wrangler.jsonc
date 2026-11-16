@@ -27,11 +27,12 @@
   // Set with `wrangler secret put`, locally in `.dev.vars`.
   "secrets": { "required": ["FIREBASE_SERVICE_ACCOUNT"] },
   // Per-location and approximate, as in the other Workers. api-tmdb-search
-  // has 1xxx, api-profiles 2xxx, api-mcp 3xxx. A preview reads the listings
+  // has 1xxx, api-profiles 2xxx, api-mcp 3xxx. One limit for what the site's
+  // pages ask (a preview, remembering the watchlist): each reads the listings
   // and the reader's documents, so a few a minute is plenty.
   "ratelimits": [
     {
-      "name": "PREVIEW_LIMIT",
+      "name": "READER_LIMIT",
       "namespace_id": "4001",
       "simple": { "limit": 10, "period": 60 },
     },

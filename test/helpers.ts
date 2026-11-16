@@ -18,7 +18,7 @@ import {
 import { vi } from "vitest";
 import worker from "../src/index";
 import { clearListings } from "../src/listings";
-import { useFirebaseKeys } from "../src/preview";
+import { useFirebaseKeys } from "../src/site-request";
 import { runNightly } from "../src/run";
 import { VENUES } from "./fixtures";
 
