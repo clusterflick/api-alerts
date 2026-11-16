@@ -14,8 +14,8 @@ counts as news, at `/personalise/alerts/` on the site.
 
 **For now it sends nothing** (`DRY_RUN`): the nightly run works out each
 reader's email and records it as one that would have gone, and the site's
-settings page previews it. Sending is built; one-click unsubscribe and bounce
-handling is built too; the privacy page comes before it's switched on.
+settings page previews it. Sending, one-click unsubscribe and bounce handling
+are built, and switched on with `DRY_RUN`.
 
 It's at `https://alerts.clusterflick.com`.
 
