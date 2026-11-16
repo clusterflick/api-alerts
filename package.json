@@ -1,0 +1,24 @@
+{
+  "name": "api-alerts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "lint": "tsc --noEmit && tsc --noEmit -p test",
+    "format": "prettier --write --ignore-path .gitignore --ignore-path .prettierignore .",
+    "test": "vitest run",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "@clusterflick/accounts": "file:../../../../../../private/tmp/claude-501/-Users-alib-Documents-projects-clusterflick-scripts/19e8027d-c24c-4208-a1f0-70d207f79905/scratchpad/packs-alerts/clusterflick-accounts-0.2.0.tgz",
+    "@clusterflick/catalogue": "file:../../../../../../private/tmp/claude-501/-Users-alib-Documents-projects-clusterflick-scripts/19e8027d-c24c-4208-a1f0-70d207f79905/scratchpad/packs-alerts/clusterflick-catalogue-0.3.0.tgz"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.8.0",
+    "jose": "6.2.17",
+    "prettier": "3.10.0",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12",
+    "wrangler": "4.160.1"
+  }
+}

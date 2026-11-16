@@ -1,0 +1,49 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "clusterflick-api-alerts",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  // The listings come from clusterflick.com over the public internet, as
+  // api-mcp reads them, never same-zone routing.
+  "compatibility_flags": ["global_fetch_strictly_public"],
+  // Its own host, the one the emails come from: the preview the site asks for,
+  // and (once sending) the unsubscribe links. Cloudflare makes the DNS record
+  // and certificate on deploy; the sending records live on cf-bounce and
+  // _dmarc beneath it, and don't clash.
+  "routes": [{ "pattern": "alerts.clusterflick.com", "custom_domain": true }],
+  "workers_dev": false,
+  "vars": {
+    // Where the listings are read from (`data/current.json`), what the emails
+    // link to, and the only origin whose pages may ask for a preview.
+    "SITE_ORIGIN": "https://clusterflick.com",
+    // Public: it's in the site's Firebase web config too.
+    "FIREBASE_PROJECT_ID": "clusterflick-com",
+    // While alerts are being tried out, the nightly run works out each
+    // reader's email and records it, and sends nothing.
+    "DRY_RUN": "true",
+  },
+  // This Worker's own service account, with Cloud Datastore User: it reads a
+  // reader's settings, capabilities and watchlist, and writes their ledger.
+  // Set with `wrangler secret put`, locally in `.dev.vars`.
+  "secrets": { "required": ["FIREBASE_SERVICE_ACCOUNT"] },
+  // Per-location and approximate, as in the other Workers. api-tmdb-search
+  // has 1xxx, api-profiles 2xxx, api-mcp 3xxx. A preview reads the listings
+  // and the reader's documents, so a few a minute is plenty.
+  "ratelimits": [
+    {
+      "name": "PREVIEW_LIMIT",
+      "namespace_id": "4001",
+      "simple": { "limit": 10, "period": 60 },
+    },
+  ],
+  // 20:00 UTC: 8pm in winter, 9pm under BST, for now.
+  "triggers": { "crons": ["0 20 * * *"] },
+  // api-tmdb-search has 8787, api-profiles 8788, api-mcp 8789.
+  "dev": { "port": 8790, "host": "localhost:8790" },
+  // Workers Paid has no spend cap, so a ceiling per invocation. Reading the
+  // listings is most of it (~120ms in Node for api-mcp); a night's run then
+  // compares each reader's watchlist. Headroom, not a fit: lower it once
+  // Workers Logs show what a run costs.
+  "limits": { "cpu_ms": 1000 },
+  "observability": { "enabled": true },
+}

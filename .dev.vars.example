@@ -1,0 +1,7 @@
+# Copy to .dev.vars for `wrangler dev`. Never commit .dev.vars.
+#
+# This Worker's service account key (api-alerts@clusterflick-com), as one line
+# of JSON: see the README's first deploy.
+FIREBASE_SERVICE_ACCOUNT={"type":"service_account",...}
+# A local site build, if you're reading the listings from one:
+# SITE_ORIGIN=http://localhost:3000
