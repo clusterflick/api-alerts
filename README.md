@@ -12,10 +12,9 @@ Alerts need `emailAlerts`, a capability the site grants one account at a
 time, and invitation-only for now. A reader switches them on, and chooses what
 counts as news, at `/personalise/alerts/` on the site.
 
-**For now it sends nothing** (`DRY_RUN`): the nightly run works out each
-reader's email and records it as one that would have gone, and the site's
-settings page previews it. Sending, one-click unsubscribe and bounce handling
-are built, and switched on with `DRY_RUN`.
+It sends, from 17 November 2026. `DRY_RUN` set to anything but `"false"` goes
+back to working out each reader's email and recording it as one that would have
+gone, sending nothing.
 
 It's at `https://alerts.clusterflick.com`.
 

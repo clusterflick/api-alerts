@@ -18,9 +18,10 @@
     "SITE_ORIGIN": "https://clusterflick.com",
     // Public: it's in the site's Firebase web config too.
     "FIREBASE_PROJECT_ID": "clusterflick-com",
-    // While alerts are being tried out, the nightly run works out each
-    // reader's email and records it, and sends nothing.
-    "DRY_RUN": "true",
+    // "true" works out each reader's email and records it as one that would
+    // have gone, and sends nothing: for trying a change out. Anything but
+    // "false" sends nothing.
+    "DRY_RUN": "false",
     // Where replies to an alert go: an address that's read, on the root
     // domain's own mail (Fastmail), not alerts.clusterflick.com, which
     // receives nothing.
