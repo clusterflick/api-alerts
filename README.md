@@ -1,7 +1,8 @@
 # api-alerts
 
-> **[Clusterflick](https://clusterflick.com)** is a free, open-source site
-> listing every film showing in London, from 500+ venues in one search.
+> **[Clusterflick](https://clusterflick.com)** is the most complete guide to
+> film in London: every listing from 500+ venues, from multiplexes to pub back
+> rooms, in one search. Free and open source.
 >
 > This repository is the Cloudflare Worker behind its email alerts: a daily
 > email when films on a reader's watchlist are showing. See the
