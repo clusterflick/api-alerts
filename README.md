@@ -33,6 +33,15 @@ have every venue a film is at, and formats, notes and links already joined in.
 | `newVenue`       | It's at a venue the ledger hasn't seen it at.                                                        |
 | `newPerformance` | A performance the ledger doesn't know, at any venue.                                                 |
 
+`newVenue` counts any cinema unless the reader has chosen only their
+favourite venues (`newVenueScope: "favourites"`, read with the watchlist from
+`users/{uid}`'s `favouriteVenues`), since a film on general release reaches
+more multiplexes almost every night. Every venue is still remembered, so a
+venue that wasn't a favourite is never news later, and changing the choice
+reports nothing old. It narrows that trigger only: a first listing is news
+wherever it is. Settings without a scope, saved before there was a choice,
+count any cinema.
+
 A film the ledger doesn't know yet was added since the last run, which knows
 nothing of what it was doing then, so it's judged by when it was added
 (`addedAt`) against when the pipeline first saw each of its showings (`seen`,

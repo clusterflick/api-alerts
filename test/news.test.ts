@@ -151,6 +151,74 @@ describe("a new venue", () => {
   });
 });
 
+describe("a new venue, only at favourite venues", () => {
+  const known: Memory = {
+    m1: { showing: true, lastShowing: dayFrom(-1), venues: ["rio"] },
+  };
+  const at3 = listings(
+    halloween({ rio: [at(1, 19)], pcc: [at(2, 20)], bfi: [at(3, 18)] }),
+  );
+  const favourites = (...venues: string[]) =>
+    findNews({
+      data: at3,
+      watchlist: new Set(["m1"]),
+      memory: known,
+      triggers: QUIET,
+      today: TODAY,
+      now: NOW,
+      newVenuesOnlyAt: new Set(venues),
+    });
+
+  it("is news only at a favourite, with only its showings", () => {
+    const { news } = favourites("bfi");
+    expect(news).toHaveLength(1);
+    expect(news[0]).toMatchObject({ newVenues: ["bfi"] });
+    expect(news[0].occurrences.map(({ venueId }) => venueId)).toEqual(["bfi"]);
+  });
+
+  it("isn't news anywhere else, which is still remembered", () => {
+    const { news, memory } = favourites("ica");
+    expect(news).toEqual([]);
+    expect(memory.m1.venues).toEqual(["rio", "pcc", "bfi"]);
+  });
+
+  it("is news when it later reaches a favourite", () => {
+    const { memory } = favourites("ica");
+    const { news } = findNews({
+      data: listings(
+        halloween({
+          rio: [at(1, 19)],
+          pcc: [at(2, 20)],
+          bfi: [at(3, 18)],
+          ica: [at(4, 18)],
+        }),
+      ),
+      watchlist: new Set(["m1"]),
+      memory,
+      triggers: QUIET,
+      today: TODAY,
+      now: NOW,
+      newVenuesOnlyAt: new Set(["ica"]),
+    });
+    expect(news[0]).toMatchObject({ newVenues: ["ica"] });
+  });
+
+  it("leaves a first listing alone: that's news wherever it is", () => {
+    const { news } = findNews({
+      data: listings(halloween({ pcc: [at(2, 20)] })),
+      watchlist: new Set(["m1"]),
+      memory: {
+        m1: { showing: false, lastShowing: dayFrom(-40), venues: ["rio"] },
+      },
+      triggers: QUIET,
+      today: TODAY,
+      now: NOW,
+      newVenuesOnlyAt: new Set(["bfi"]),
+    });
+    expect(news[0]).toMatchObject({ firstListing: true });
+  });
+});
+
 describe("a new performance", () => {
   it("is remembered first when the trigger's switched on, not reported", () => {
     const { news, memory } = run(
@@ -245,6 +313,7 @@ describe("a film added since the last run", () => {
       triggers = QUIET as readonly (
         "firstListing" | "newVenue" | "newPerformance"
       )[],
+      newVenuesOnlyAt = undefined as ReadonlySet<string> | undefined,
     } = {},
   ) {
     return findNews({
@@ -256,6 +325,7 @@ describe("a film added since the last run", () => {
       now: NOW,
       addedAt: { m1: addedAt },
       since: since ?? undefined,
+      newVenuesOnlyAt,
     });
   }
 
@@ -320,6 +390,22 @@ describe("a film added since the last run", () => {
     );
     expect(news[0]).toMatchObject({ firstListing: false, newVenues: ["pcc"] });
     expect(news[0].occurrences.map(({ venueId }) => venueId)).toEqual(["pcc"]);
+  });
+
+  it("reaching a venue after it was added, isn't news unless it's a favourite", () => {
+    const data = listings(
+      film(
+        "m1",
+        "Halloween",
+        { rio: [at(1, 19)], pcc: [at(2, 20)] },
+        {},
+        { rio: ADDED - 2 * PUBLISH_LAG_MS, pcc: NOW - HOUR },
+      ),
+    );
+    expect(added(data, { newVenuesOnlyAt: new Set(["bfi"]) }).news).toEqual([]);
+    expect(
+      added(data, { newVenuesOnlyAt: new Set(["pcc"]) }).news[0],
+    ).toMatchObject({ newVenues: ["pcc"] });
   });
 
   it.each([

@@ -121,6 +121,24 @@ describe("the next night", () => {
     expect(await runNight(NEXT_NIGHT)).toMatchObject({ previewed: 1 });
   });
 
+  it("counts a new venue only at a favourite, when that's the choice", async () => {
+    const store = reader(
+      "u1",
+      { m1: "Halloween" },
+      { newVenueScope: "favourites", favouriteVenues: ["bfi"] },
+    );
+    let movies: Movie[] = [film("m1", "Halloween", { rio: [at(1, 19)] })];
+    serve({ movies: () => movies, store });
+    await runNight(NOW);
+
+    vi.setSystemTime(NEXT_NIGHT);
+    movies = [film("m1", "Halloween", { rio: [at(1, 19)], pcc: [at(2, 20)] })];
+    await runNight(NEXT_NIGHT);
+    expect(ledger(store).runs[0]).toMatchObject({ outcome: "nothingNew" });
+    // Still remembered, so it's never news there later either.
+    expect(ledger(store).films.m1).toMatchObject({ venues: ["rio", "pcc"] });
+  });
+
   it("with nothing new is a quiet night, not a first check", async () => {
     const store = reader("u1", { m1: "Halloween" });
     serve({ movies: () => [], store });

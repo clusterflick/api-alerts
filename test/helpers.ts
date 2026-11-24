@@ -51,6 +51,8 @@ export function reader(
     notify = ["firstListing", "newVenue"],
     enabled = true,
     email = `${uid}@example.com` as string | null,
+    newVenueScope = undefined as string | undefined,
+    favouriteVenues = [] as string[],
   } = {},
 ): Store {
   return {
@@ -58,7 +60,9 @@ export function reader(
     [`users/${uid}/meta/alerts`]: {
       enabled,
       ...(email && { email }),
-      alerts: [{ type: "watchlist", notify }],
+      alerts: [
+        { type: "watchlist", notify, ...(newVenueScope && { newVenueScope }) },
+      ],
     },
     [`users/${uid}`]: {
       watchlist: Object.fromEntries(
@@ -66,6 +70,9 @@ export function reader(
           id,
           { title, addedAt: 1 },
         ]),
+      ),
+      favouriteVenues: Object.fromEntries(
+        favouriteVenues.map((id) => [id, { name: id, addedAt: 1 }]),
       ),
     },
   };
