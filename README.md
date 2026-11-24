@@ -165,11 +165,26 @@ times.
 
 ## The email
 
-`src/digest.ts`: grouped by film, at most 10, each with what's new about it
-and its first 3 showings (day, time, venue), its title linking to its page;
-the rest counted and linked. Plain HTML that reads the same in every mail
-client, with a text version. The footer says why it came and links to the
-settings (and, once sending, to unsubscribe).
+`src/digest.ts`: grouped by film, at most 10, each with what's new about it,
+its title linking to its page; the rest counted and linked.
+
+- **The most interesting make the cut.** A first listing ranks above a film
+  reaching new venues, which ranks above new showings where it already was.
+  Within each, a film at fewer venues ranks higher, since a third venue for
+  a film at two is bigger news than an eighteenth for a wide release; then
+  the soonest showing, then the title. The top film is the subject.
+- **Then they read in that order, alphabetically in each tier** ("The Fly"
+  under F), so a film is easy to find.
+- **A line per venue** (and per event at it), soonest first, with up to 3 of
+  its times, the day named only when it changes ("Fri 13:30, 15:10, Sat
+  11:00"); up to 3 venues, the rest counted. Each venue links to the film's
+  page filtered to it (`?base=all&venues=…`, the site's own filter params),
+  never to a booking page: an email can't be updated once sent, and a
+  venue's booking links change more often than the site's.
+
+Plain HTML that reads the same in every mail client, with a text version.
+The footer says why it came and links to the settings (and, once sending,
+to unsubscribe).
 
 ## Working on it
 
