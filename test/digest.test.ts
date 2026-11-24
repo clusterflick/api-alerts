@@ -43,8 +43,9 @@ describe("one film", () => {
     expect(text.indexOf("Rio Cinema")).toBeLessThan(
       text.indexOf("Prince Charles"),
     );
-    expect(text).toContain(`${SITE}/movies/m1/halloween`);
-    expect(html).toContain(`href="${SITE}/movies/m1/halloween"`);
+    // Every date: the site's default week would hide a showing months off.
+    expect(text).toContain(`${SITE}/movies/m1/halloween?base=all\n`);
+    expect(html).toContain(`href="${SITE}/movies/m1/halloween?base=all"`);
   });
 
   it("links each venue to the film's page filtered to it, with every date", () => {
@@ -191,6 +192,24 @@ describe("the order", () => {
     expect(text).toContain("  and 1 more cinema\n");
     expect(html).toContain(
       `href="${SITE}/movies/1/wide-release?base=all&amp;venues=pcc,bfi,ica,barbican"`,
+    );
+  });
+
+  it("links the rest of a first listing's cinemas to every date, unfiltered", () => {
+    const wide = listings(
+      film("m1", "Halloween", {
+        rio: [at(1, 12)],
+        pcc: [at(1, 13)],
+        bfi: [at(1, 14)],
+        ica: [at(1, 15)],
+      }),
+    );
+    const { html } = render(
+      wide,
+      everythingShowing(wide, new Set(["m1"]), NOW),
+    );
+    expect(html).toContain(
+      `<a href="${SITE}/movies/m1/halloween?base=all" style="color:#e4a11b;">and 1 more cinema</a>`,
     );
   });
 

@@ -107,12 +107,18 @@ const sortTitle = (title: string) => title.replace(/^(the|a|an)\s+/i, "");
 const compareTitles = (a: string, b: string) =>
   sortTitle(a).localeCompare(sortTitle(b), "en-GB", { sensitivity: "base" });
 
+/**
+ * The film page with every date. Without `base=all` it opens on the site's
+ * default week, and a film whose news is in February lists nothing.
+ */
+const allDatesUrl = (pageUrl: string) => `${pageUrl}?base=all`;
+
 /** The film page, filtered to these venues, with every date. */
 function filteredUrl(pageUrl: string, venueIds: readonly string[]): string {
   // Each id encoded on its own so the separating commas stay readable, as
   // the site's own filter links do.
   const venues = venueIds.map(encodeURIComponent).join(",");
-  return `${pageUrl}?base=all&venues=${venues}`;
+  return `${allDatesUrl(pageUrl)}&venues=${venues}`;
 }
 
 type VenueLine = {
@@ -166,7 +172,8 @@ function describeFilm(item: FilmNews, options: DigestOptions): FilmEntry {
   const own = data.movies[item.filmId];
   // Its own page when it's listed as itself; otherwise the event showing it.
   const page = own ?? item.occurrences[0]?.listing;
-  const url = page ? `${siteOrigin}${getMovieUrl(page)}` : siteOrigin;
+  const pageUrl = page ? `${siteOrigin}${getMovieUrl(page)}` : null;
+  const url = pageUrl ? allDatesUrl(pageUrl) : siteOrigin;
   const venueName = (id: string) => data.venues[id]?.name ?? id;
 
   const parts: string[] = [];
@@ -216,7 +223,8 @@ function describeFilm(item: FilmNews, options: DigestOptions): FilmEntry {
     moreVenues: Math.max(0, lines.length - MAX_VENUES),
     // A first listing is news everywhere it's showing; otherwise only the
     // venues the news is about.
-    moreVenuesUrl: item.firstListing ? url : filteredUrl(url, venueIds),
+    moreVenuesUrl:
+      item.firstListing || !pageUrl ? url : filteredUrl(pageUrl, venueIds),
   };
 }
 

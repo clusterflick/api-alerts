@@ -175,7 +175,9 @@ times.
 ## The email
 
 `src/digest.ts`: grouped by film, at most 10, each with what's new about it,
-its title linking to its page; the rest counted and linked.
+its title linking to its page on every date (`?base=all`: the page otherwise
+opens on the site's default week, and a film whose news is months off would
+list nothing); the rest counted and linked.
 
 - **The most interesting make the cut.** A first listing ranks above a film
   reaching new venues, which ranks above new showings where it already was.
