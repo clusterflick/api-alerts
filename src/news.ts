@@ -130,6 +130,7 @@ export function findNews({
   now,
   addedAt = {},
   since,
+  newVenuesOnlyAt,
 }: {
   data: CinemaData;
   watchlist: ReadonlySet<string>;
@@ -145,7 +146,15 @@ export function findNews({
    * it was added; without it, any film it doesn't know just starts here.
    */
   since?: number;
+  /**
+   * Where a new venue is news, when not anywhere: the reader's favourite
+   * venues. The memory still keeps every venue, so a film that later reaches
+   * a favourite is news there, and changing the choice reports nothing old.
+   */
+  newVenuesOnlyAt?: ReadonlySet<string>;
 }): NewsResult {
+  const counts = (venueId: string) =>
+    !newVenuesOnlyAt || newVenuesOnlyAt.has(venueId);
   const on = new Set(triggers);
   const occurrencesOf = findOccurrences(data, watchlist, now);
   const news: FilmNews[] = [];
@@ -173,7 +182,7 @@ export function findNews({
       const added = addedAt[filmId];
       const sinceAdded =
         showing && added && since !== undefined && added >= since
-          ? sinceAddition(occurrences, added, on)
+          ? sinceAddition(occurrences, added, on, counts)
           : null;
       if (sinceAdded) news.push({ filmId, ...sinceAdded });
       next[filmId] = remembered;
@@ -208,7 +217,7 @@ export function findNews({
         : [];
 
     const firstListing = returning && on.has("firstListing");
-    const atNewVenues = on.has("newVenue") ? newVenues : [];
+    const atNewVenues = on.has("newVenue") ? newVenues.filter(counts) : [];
     if (firstListing || atNewVenues.length > 0 || newKeys.length > 0) {
       const newVenueSet = new Set(atNewVenues);
       const newKeySet = new Set(newKeys);
@@ -241,6 +250,7 @@ function sinceAddition(
   occurrences: Occurrence[],
   added: number,
   on: ReadonlySet<AlertTrigger>,
+  counts: (venueId: string) => boolean,
 ): Omit<FilmNews, "filmId"> | null {
   if (occurrences.some(({ seen }) => seen === undefined)) return null;
   const cutoff = added - PUBLISH_LAG_MS;
@@ -256,7 +266,9 @@ function sinceAddition(
   const known = new Set(before.map(({ venueId }) => venueId));
   const newVenues = [
     ...new Set(
-      after.map(({ venueId }) => venueId).filter((id) => !known.has(id)),
+      after
+        .map(({ venueId }) => venueId)
+        .filter((id) => !known.has(id) && counts(id)),
     ),
   ];
   if (newVenues.length === 0) return null;

@@ -10,7 +10,7 @@
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
-    "@clusterflick/accounts": "0.2.0",
+    "@clusterflick/accounts": "0.6.0",
     "@clusterflick/catalogue": "0.3.0"
   },
   "devDependencies": {

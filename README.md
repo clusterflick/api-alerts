@@ -33,6 +33,15 @@ have every venue a film is at, and formats, notes and links already joined in.
 | `newVenue`       | It's at a venue the ledger hasn't seen it at.                                                        |
 | `newPerformance` | A performance the ledger doesn't know, at any venue.                                                 |
 
+`newVenue` counts any cinema unless the reader has chosen only their
+favourite venues (`newVenueScope: "favourites"`, read with the watchlist from
+`users/{uid}`'s `favouriteVenues`), since a film on general release reaches
+more multiplexes almost every night. Every venue is still remembered, so a
+venue that wasn't a favourite is never news later, and changing the choice
+reports nothing old. It narrows that trigger only: a first listing is news
+wherever it is. Settings without a scope, saved before there was a choice,
+count any cinema.
+
 A film the ledger doesn't know yet was added since the last run, which knows
 nothing of what it was doing then, so it's judged by when it was added
 (`addedAt`) against when the pipeline first saw each of its showings (`seen`,
@@ -165,11 +174,28 @@ times.
 
 ## The email
 
-`src/digest.ts`: grouped by film, at most 10, each with what's new about it
-and its first 3 showings (day, time, venue), its title linking to its page;
-the rest counted and linked. Plain HTML that reads the same in every mail
-client, with a text version. The footer says why it came and links to the
-settings (and, once sending, to unsubscribe).
+`src/digest.ts`: grouped by film, at most 10, each with what's new about it,
+its title linking to its page on every date (`?base=all`: the page otherwise
+opens on the site's default week, and a film whose news is months off would
+list nothing); the rest counted and linked.
+
+- **The most interesting make the cut.** A first listing ranks above a film
+  reaching new venues, which ranks above new showings where it already was.
+  Within each, a film at fewer venues ranks higher, since a third venue for
+  a film at two is bigger news than an eighteenth for a wide release; then
+  the soonest showing, then the title. The top film is the subject.
+- **Then they read in that order, alphabetically in each tier** ("The Fly"
+  under F), so a film is easy to find.
+- **A line per venue** (and per event at it), soonest first, with up to 3 of
+  its times, the day named only when it changes ("Fri 13:30, 15:10, Sat
+  11:00"); up to 3 venues, the rest counted. Each venue links to the film's
+  page filtered to it (`?base=all&venues=…`, the site's own filter params),
+  never to a booking page: an email can't be updated once sent, and a
+  venue's booking links change more often than the site's.
+
+Plain HTML that reads the same in every mail client, with a text version.
+The footer says why it came and links to the settings (and, once sending,
+to unsubscribe).
 
 ## Working on it
 

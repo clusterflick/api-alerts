@@ -15,7 +15,7 @@ import { timestampToLondonDateString } from "@clusterflick/catalogue/utils/forma
 import { renderDigest } from "./digest";
 import { getListings } from "./listings";
 import { findNews, readMemory, rememberedSince, type Memory } from "./news";
-import { firestore, readReader, watchlistOf } from "./reader";
+import { firestore, newVenuesOnlyAt, readReader, watchlistOf } from "./reader";
 import { FROM, sendDigest } from "./send";
 import { unsubscribeUrl } from "./unsubscribe";
 
@@ -105,9 +105,10 @@ async function runReader(
     extra: Partial<AlertRun> = {},
   ): AlertRun => ({ on: today, at: now, outcome, ...extra });
 
-  const triggers =
-    reader.settings?.alerts.find(({ type }) => type === "watchlist")?.notify ??
-    [];
+  const alert = reader.settings?.alerts.find(
+    ({ type }) => type === "watchlist",
+  );
+  const triggers = alert?.notify ?? [];
   if (!reader.settings?.enabled || triggers.length === 0) {
     run = record(AlertRunOutcome.Skipped, { reason: REASONS.off });
   } else if (!reader.granted) {
@@ -127,6 +128,7 @@ async function runReader(
       now,
       addedAt,
       since: rememberedSince(runs[0]?.at, ledgerData.rememberedAt),
+      newVenuesOnlyAt: newVenuesOnlyAt(reader, alert?.newVenueScope),
     });
     // Nothing remembered yet: this run could only remember, and says so,
     // so it isn't mistaken for a quiet night.

@@ -13,7 +13,7 @@ import {
   readMemory,
   rememberedSince,
 } from "./news";
-import { firestore, readReader, watchlistOf } from "./reader";
+import { firestore, newVenuesOnlyAt, readReader, watchlistOf } from "./reader";
 import { replyTo, signedInReader } from "./site-request";
 
 /**
@@ -47,7 +47,7 @@ export async function handlePreview(
   if ("response" in signedIn) return signedIn.response;
   const { uid } = signedIn;
 
-  let body: { notify?: unknown; mode?: unknown };
+  let body: { notify?: unknown; mode?: unknown; newVenueScope?: unknown };
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -55,11 +55,18 @@ export async function handlePreview(
   }
   const mode = MODES.find((each) => each === body?.mode);
   if (!mode) return reply(400, { error: `mode must be ${MODES.join(" or ")}` });
-  const triggers =
-    parseAlertSettings({
-      enabled: true,
-      alerts: [{ type: "watchlist", notify: body.notify }],
-    })?.alerts[0]?.notify ?? [];
+  // Read as saved settings are: an unknown or missing scope is "any".
+  const alert = parseAlertSettings({
+    enabled: true,
+    alerts: [
+      {
+        type: "watchlist",
+        notify: body.notify,
+        newVenueScope: body.newVenueScope,
+      },
+    ],
+  })?.alerts[0];
+  const triggers = alert?.notify ?? [];
 
   try {
     const reader = await readReader(firestore(env), uid);
@@ -87,6 +94,7 @@ export async function handlePreview(
                 ledger.runs[0]?.at,
                 reader.ledger?.data.rememberedAt,
               ),
+              newVenuesOnlyAt: newVenuesOnlyAt(reader, alert?.newVenueScope),
             }).news;
     return reply(200, {
       mode: mode satisfies Mode,

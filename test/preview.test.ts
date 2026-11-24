@@ -111,6 +111,37 @@ describe("since the last run", () => {
   });
 });
 
+describe("only at favourite venues", () => {
+  it("counts a new venue only when the reader has favourited it", async () => {
+    let movies: Movie[] = [HALLOWEEN];
+    serve({
+      movies: () => movies,
+      store: reader("u1", { m1: "Halloween" }, { favouriteVenues: ["pcc"] }),
+    });
+    await runNight(NOW - 60_000);
+    movies = [
+      film("m1", "Halloween", {
+        rio: [at(1, 19)],
+        pcc: [at(2, 20)],
+        bfi: [at(3, 20)],
+      }),
+    ];
+    const ask = (newVenueScope?: string) =>
+      preview({ mode: "sinceLastRun", notify: ["newVenue"], newVenueScope });
+
+    expect((await ask("favourites")).body?.digest?.subject).toBe(
+      "Halloween: Now also at Prince Charles Cinema",
+    );
+    expect((await ask("any")).body?.digest?.subject).toBe(
+      "Halloween: Now also at Prince Charles Cinema and BFI Southbank",
+    );
+    // Unknown, or from a site before there was a choice: anywhere.
+    expect((await ask()).body?.digest?.subject).toBe(
+      "Halloween: Now also at Prince Charles Cinema and BFI Southbank",
+    );
+  });
+});
+
 describe("a preview", () => {
   it("needs a sign-in", async () => {
     serve({ movies: () => [], store: reader("u1", {}) });
